@@ -1,8 +1,8 @@
 #!/usr/bin/env bash
 
 HOST=""
-SOURCE=""
-BUILD_SYSTEM=""
+SOURCE="."
+BUILD_SYSTEM="generic"
 FLAKE="."
 SKIP_TESTS=0
 
@@ -12,8 +12,8 @@ TMPDIR=""
 RESULT=""
 
 usage() {
-    echo "Usage: --host=<hostname> --source=<source> --build-system=<system> --flake=<Optional(flake)> --skip-tests=<Optional(0|1)>"
-    echo "flake is relative to the source directory, build systems are: hm, nixos, shell and generic"
+    echo "Usage: --host=<hostname> --source=<source> --build-system=<Optional(system)> --flake=<Optional(flake)> --skip-tests=<Optional(0|1)>"
+    echo "flake is relative to the source directory, build systems are: hm, nixos, shell (Defaults to just nix building the flake in source)"
     exit 1
 }
 
@@ -55,6 +55,9 @@ parse_args() {
     echo "Skip tests: " $SKIP_TESTS
 }
 
+check_source() {
+    nix flake check $SOURCE || exit
+}
 
 check_connection() {
     echo "> Checking SSH connection to $HOST..."
@@ -146,7 +149,7 @@ get_result
 run_generic() {
 ssh "$HOST" <<EOF
 cd "$TMPDIR"
-nix build --flake $FLAKE --impure
+nix build $FLAKE --impure
 EOF
 get_result
 }
@@ -165,14 +168,18 @@ remote_build() {
         shell)
             run_shell
             ;;
-        *)
+        generic)
             run_generic
             ;;
+        *)
+            echo "unknown build system $BUILD_SYSTEM, exiting..." && exit
         esac
 }
 
 
 parse_args "$@"
+
+check_source
 
 if [[ $SKIP_TESTS -eq 0 ]]; then
     check_connection
