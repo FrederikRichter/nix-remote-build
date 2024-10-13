@@ -6,6 +6,7 @@ Nix store and remote builder options worked kindoff but eval on rmeote is still 
 This sends a flake directory (git tracked ofcourse) to a tempdir on a Nixos host,
 builds and evals everything there and copies back the result with nix copy.
 
+Supports Home-Manager (Flakes), NixOS rebuilds (Flakes), custom shell.nix (non Flakes) and just building using nix build (Flakes)
 # Usage
 ```bash
 nix run github:FrederikRichter/nix-remote-build -- --host="{HOST}" --source="." --build-system="{BUILD_SYSTEM}" --flake="{FLAKE}"
