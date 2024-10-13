@@ -3,7 +3,7 @@
 HOST=""
 SOURCE=""
 BUILD_SYSTEM=""
-FLAKE=""
+FLAKE="."
 SKIP_TESTS=0
 
 TEST_FAILED=0
@@ -107,7 +107,37 @@ run_hm() {
 local build_dir=$1
 ssh "$HOST" <<EOF
 cd "$TMPDIR"
-home-manager build --impure --flake $FLAKE 2>&1
+home-manager build --impure --flake $FLAKE
+EOF
+RESULT=$(ssh $HOST readlink $TMPDIR/result)
+nix copy --from ssh://$HOST $RESULT
+}
+
+run_nixos() {
+local build_dir=$1
+ssh "$HOST" <<EOF
+cd "$TMPDIR"
+nixos-rebuild build --flake $FLAKE --impure
+EOF
+RESULT=$(ssh $HOST readlink $TMPDIR/result)
+nix copy --from ssh://$HOST $RESULT
+}
+
+run_shell(){
+local build_dir=$1
+ssh "$HOST" <<EOF
+cd "$TMPDIR"
+nix-shell ./shell.nix
+EOF
+RESULT=$(ssh $HOST readlink $TMPDIR/result)
+nix copy --from ssh://$HOST $RESULT
+}
+
+run_generic() {
+local build_dir=$1
+ssh "$HOST" <<EOF
+cd "$TMPDIR"
+nix build --flake $FLAKE --impure
 EOF
 RESULT=$(ssh $HOST readlink $TMPDIR/result)
 nix copy --from ssh://$HOST $RESULT
@@ -121,13 +151,15 @@ remote_build() {
         hm)
             run_hm $TMPDIR
             ;;
-        # nixos)
-            #     ;;
-        # shell)
-            #     ;;
-        # *)
-            # # Default case if no patterns match
-            # ;;
+        nixos)
+            run_nixos $TMPDIR
+            ;;
+        shell)
+            run_shell $TMPDIR
+            ;;
+        *)
+            run_generic $TMPDIR
+            ;;
         esac
 }
 
