@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 HOST=""
-SOURCE="."
+SOURCE=$(realpath ".")
 BUILD_SYSTEM="generic"
 FLAKE="."
 SKIP_TESTS=0
