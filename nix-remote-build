@@ -125,7 +125,7 @@ fi
 run_hm() {
 ssh "$HOST" <<EOF
 cd "$TMPDIR"
-home-manager build --impure --flake $FLAKE
+home-manager build --impure --flake $FLAKE --show-trace
 EOF
 get_result
 }
