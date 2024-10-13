@@ -8,10 +8,12 @@ SKIP_TESTS=0
 
 TEST_FAILED=0
 
+TMPDIR=""
 RESULT=""
 
 usage() {
-    echo "Usage: $0 --host=<hostname> --source=<source> --build-system=<system> --flake=<flake> --skip-tests=<Optional(0|1)>"
+    echo "Usage: --host=<hostname> --source=<source> --build-system=<system> --flake=<Optional(flake)> --skip-tests=<Optional(0|1)>"
+    echo "flake is relative to the source directory, build systems are: hm, nixos, shell and generic"
     exit 1
 }
 
@@ -35,7 +37,8 @@ parse_args() {
                 SKIP_TESTS="${arg#*=}"
                 ;;
             *)
-                usage
+                echo "some arguments have been ommited"
+                echo "got $@"
                 ;;
         esac
     done
@@ -44,7 +47,12 @@ parse_args() {
     if [[ -z "$HOST" || -z "$SOURCE" || -z "$BUILD_SYSTEM" || -z "$FLAKE"  || -z "$SKIP_TESTS" ]]; then
         usage
     fi
-    echo $SOURCE
+    echo "using arguments"
+    echo "Host: " $HOST
+    echo "Source: " $SOURCE
+    echo "Build system: " $BUILD_SYSTEM
+    echo "Flake: " $FLAKE
+    echo "Skip tests: " $SKIP_TESTS
 }
 
 
@@ -103,44 +111,44 @@ setup_tmp() {
 }
 
 
+get_result() {
+if ssh -q "$HOST" "[[ -L $TMPDIR/result ]]"; then
+RESULT=$(ssh $HOST readlink $TMPDIR/result)
+nix copy --from ssh://$HOST $RESULT
+ln -sfn $RESULT $SOURCE/result
+fi
+}
+
 run_hm() {
-local build_dir=$1
 ssh "$HOST" <<EOF
 cd "$TMPDIR"
 home-manager build --impure --flake $FLAKE
 EOF
-RESULT=$(ssh $HOST readlink $TMPDIR/result)
-nix copy --from ssh://$HOST $RESULT
+get_result
 }
 
 run_nixos() {
-local build_dir=$1
 ssh "$HOST" <<EOF
 cd "$TMPDIR"
 nixos-rebuild build --flake $FLAKE --impure
 EOF
-RESULT=$(ssh $HOST readlink $TMPDIR/result)
-nix copy --from ssh://$HOST $RESULT
+get_result
 }
 
 run_shell(){
-local build_dir=$1
 ssh "$HOST" <<EOF
 cd "$TMPDIR"
 nix-shell ./shell.nix
 EOF
-RESULT=$(ssh $HOST readlink $TMPDIR/result)
-nix copy --from ssh://$HOST $RESULT
+get_result
 }
 
 run_generic() {
-local build_dir=$1
 ssh "$HOST" <<EOF
 cd "$TMPDIR"
 nix build --flake $FLAKE --impure
 EOF
-RESULT=$(ssh $HOST readlink $TMPDIR/result)
-nix copy --from ssh://$HOST $RESULT
+get_result
 }
 
 remote_build() {
@@ -149,23 +157,20 @@ remote_build() {
 
     case "$BUILD_SYSTEM" in
         hm)
-            run_hm $TMPDIR
+            run_hm
             ;;
         nixos)
-            run_nixos $TMPDIR
+            run_nixos
             ;;
         shell)
-            run_shell $TMPDIR
+            run_shell
             ;;
         *)
-            run_generic $TMPDIR
+            run_generic
             ;;
         esac
 }
 
-link_result() {
-    ln -sfn $RESULT $SOURCE/result
-}
 
 parse_args "$@"
 
@@ -173,4 +178,4 @@ if [[ $SKIP_TESTS -eq 0 ]]; then
     check_connection
 fi
 
-setup_tmp && remote_build && link_result
+setup_tmp && remote_build && get_result
