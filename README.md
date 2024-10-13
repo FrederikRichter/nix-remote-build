@@ -22,6 +22,6 @@ nix run github:FrederikRichter/nix-remote-build -- --host="{HOST}" --source="." 
   - (generic) default, will just nix build the source dir
 - flake: the normal flake option, defaults to "." Is relative to source dir
 
-# Waring!
+# Warning!
 I hacked this together in 2 Hours, no warranty. Should be safe to use since it doesnt delete anything.
 Temp dirs need to be cleaned up manually. Should check source dir for flake beforhand and copies only what is tracked by git.
