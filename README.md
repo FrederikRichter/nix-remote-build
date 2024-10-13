@@ -12,7 +12,7 @@ nix run github:FrederikRichter/nix-remote-build -- --host="{HOST}" --source="." 
 ```
 
 ## Explanation of arguments
-- sost: ssh host, can be alias. Examples: build-server, localhost, 192.168.1.12, root@192.168.1.2
+- host: ssh host, can be alias. Examples: build-server, localhost, 192.168.1.12, root@192.168.1.2
 - source: source directory of what to build, defaults to current directory ".". ~ Not supported, expand path
 - build-system: 
   - (hm) Has some pre defined build commands for home-manager
