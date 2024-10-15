@@ -7,7 +7,7 @@ This sends a flake directory (git tracked ofcourse) to a tempdir on a Nixos host
 builds and evals everything there and copies back the result with nix copy.
 The result will be in the local nix store and there will be a result symlink in the source directory.
 
-Supports Home-Manager (Flakes), NixOS rebuilds (Flakes), custom shell.nix (non Flakes) and just building using nix build (Flakes)
+Supports Home-Manager (Flakes), NixOS rebuilds (Flakes), custom shell.nix (non Flakes) and just building using nix build (Flakes) from directory or URL
 # Usage
 ```bash
 nix run github:FrederikRichter/nix-remote-build -- --host="{HOST}" --source="." --build-system="{BUILD_SYSTEM}" --flake="{FLAKE}"
@@ -20,6 +20,7 @@ nix run github:FrederikRichter/nix-remote-build -- --host="{HOST}" --source="." 
   - (hm) Has some pre defined build commands for home-manager
   - (nixos) nixos-rebuild
   - (shell) shell.nix thats used for building
+  - (url) examples: set source to github:Frederik/nixvim, nixpkgs#hello etc. Flake option is not supported here
   - (generic) default, will just nix build the source dir
 - flake: the normal flake option, defaults to "." Is relative to source dir
 
