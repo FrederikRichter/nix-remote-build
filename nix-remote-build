@@ -12,8 +12,16 @@ TMPDIR=""
 RESULT=""
 
 usage() {
-    echo "Usage: --host=<hostname> --source=<source> --build-system=<Optional(system)> --flake=<Optional(flake)> --skip-tests=<Optional(0|1)>"
-    echo "flake is relative to the source directory, build systems are: hm, nixos, shell (Defaults to just nix building the flake in source)"
+    echo "Usage: --host=<hostname> --source=<Optional(source)> --build-system=<Optional(system)> --flake=<Optional(flake)> --skip-tests=<Optional(0|1)>"
+    echo "
+    flake is relative to the source directory
+
+    build systems are:
+    hm, nixos, shell, url (source can be set as nixpkgs#hello, github.com/FrederikRichter/nixvim etc)
+
+    Default: generic
+    will use current dir by default and use nix build
+    "
     exit 1
 }
 
@@ -25,7 +33,7 @@ parse_args() {
                 HOST="${arg#*=}"
                 ;;
             --source=*)
-                SOURCE=$(realpath "${arg#*=}")
+                SOURCE=$"${arg#*=}"
                 ;;
             --build-system=*)
                 BUILD_SYSTEM="${arg#*=}"
@@ -42,6 +50,10 @@ parse_args() {
                 ;;
         esac
     done
+    
+    if [[ $BUILD_SYSTEM != "url" ]]; then
+        BUILD_SYSTEM=$(realpath $BUILD_SYSTEM)
+    fi
 
     # Check if all options are provided
     if [[ -z "$HOST" || -z "$SOURCE" || -z "$BUILD_SYSTEM" || -z "$FLAKE"  || -z "$SKIP_TESTS" ]]; then
@@ -56,7 +68,7 @@ parse_args() {
 }
 
 check_source() {
-    nix flake check $SOURCE || exit
+    nix flake metadata $SOURCE || exit
 }
 
 check_connection() {
@@ -115,10 +127,21 @@ setup_tmp() {
 
 
 get_result() {
-if ssh -q "$HOST" "[[ -L $TMPDIR/result ]]"; then
-RESULT=$(ssh $HOST readlink $TMPDIR/result)
-nix copy --from ssh://$HOST $RESULT
-ln -sfn $RESULT $SOURCE/result
+if ssh -q "$HOST" "[[ -L \"$TMPDIR/result\" ]]"; then
+    RESULT=$(ssh "$HOST" readlink "$TMPDIR/result")
+    
+    if [[ -z "$RESULT" ]]; then
+        echo "Error: No result found for symlink at $TMPDIR/result, build failed."
+        exit 1
+    fi
+
+    nix copy --no-require-sigs --from "ssh://$HOST" "$RESULT"
+
+    if [[ "$BUILD_SYSTEM" != "url" ]]; then
+        ln -sfn "$RESULT" "$SOURCE/result"
+    else
+        ln -sfn "$RESULT" "./result"
+    fi
 fi
 }
 
@@ -127,7 +150,6 @@ ssh "$HOST" <<EOF
 cd "$TMPDIR"
 home-manager build --impure --flake $FLAKE --show-trace
 EOF
-get_result
 }
 
 run_nixos() {
@@ -135,7 +157,6 @@ ssh "$HOST" <<EOF
 cd "$TMPDIR"
 nixos-rebuild build --flake $FLAKE --impure
 EOF
-get_result
 }
 
 run_shell(){
@@ -143,7 +164,6 @@ ssh "$HOST" <<EOF
 cd "$TMPDIR"
 nix-shell ./shell.nix
 EOF
-get_result
 }
 
 run_generic() {
@@ -151,12 +171,21 @@ ssh "$HOST" <<EOF
 cd "$TMPDIR"
 nix build $FLAKE --impure
 EOF
-get_result
+}
+
+run_url() {
+ssh "$HOST" <<EOF
+cd "$TMPDIR"
+nix build $SOURCE --impure
+EOF
 }
 
 remote_build() {
-    file_list=$(git --git-dir=$SOURCE/.git --work-tree=$SOURCE ls-files)
-    rsync -v --mkpath --files-from=<(printf "%s\n" "${file_list[@]}") "$SOURCE" "$HOST:$TMPDIR/$file"
+
+    if [[ $BUILD_SYSTEM != "url" ]]; then
+        file_list=$(git --git-dir=$SOURCE/.git --work-tree=$SOURCE ls-files)
+        rsync -v --mkpath --files-from=<(printf "%s\n" "${file_list[@]}") "$SOURCE" "$HOST:$TMPDIR/$file"
+    fi
 
     case "$BUILD_SYSTEM" in
         hm)
@@ -167,6 +196,9 @@ remote_build() {
             ;;
         shell)
             run_shell
+            ;;
+        url)
+            run_url
             ;;
         generic)
             run_generic
@@ -179,7 +211,9 @@ remote_build() {
 
 parse_args "$@"
 
-check_source
+if [[ $BUILD_SYSTEM == "hm" || $BUILD_SYSTEM == "nixos" || $BUILD_SYSTEM == "generic" ]]; then
+    check_source
+fi
 
 if [[ $SKIP_TESTS -eq 0 ]]; then
     check_connection
