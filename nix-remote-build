@@ -135,7 +135,7 @@ if ssh -q "$HOST" "[[ -L \"$TMPDIR/result\" ]]"; then
         exit 1
     fi
 
-    nix copy --no-require-sigs --from "ssh://$HOST" "$RESULT"
+    nix copy --from "ssh://$HOST" "$RESULT"
 
     if [[ "$BUILD_SYSTEM" != "url" ]]; then
         ln -sfn "$RESULT" "$SOURCE/result"
