@@ -52,7 +52,7 @@ parse_args() {
     done
     
     if [[ $BUILD_SYSTEM != "url" ]]; then
-        BUILD_SYSTEM=$(realpath $BUILD_SYSTEM)
+        SOURCE=$(realpath $SOURCE)
     fi
 
     # Check if all options are provided
